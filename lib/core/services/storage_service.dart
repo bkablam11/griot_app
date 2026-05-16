@@ -5,31 +5,46 @@ import 'package:flutter/foundation.dart';
 class StorageService {
   final _client = Supabase.instance.client;
 
-  Future<String?> uploadAudio(String localPath, String fileName) async {
+  /// Cette fonction accepte soit un [path] (Mobile), soit des [bytes] (Web)
+  Future<String?> uploadAudio({
+    String? localPath,
+    Uint8List? fileBytes,
+    required String fileName,
+  }) async {
     try {
-      final file = File(localPath);
+      if (kIsWeb) {
+        // --- LOGIQUE WEB ---
+        if (fileBytes == null) return null;
+        await _client.storage
+            .from('audios')
+            .uploadBinary(
+              fileName,
+              fileBytes,
+              fileOptions: const FileOptions(
+                contentType: 'audio/mpeg',
+                upsert: true,
+              ),
+            );
+      } else {
+        // --- LOGIQUE MOBILE (Android/iOS) ---
+        if (localPath == null) return null;
+        final file = File(localPath);
+        await _client.storage
+            .from('audios')
+            .upload(
+              fileName,
+              file,
+              fileOptions: const FileOptions(
+                contentType: 'audio/mpeg',
+                upsert: true,
+              ),
+            );
+      }
 
-      // Envoi du fichier vers Supabase
-      await _client.storage
-          .from('audios')
-          .upload(
-            fileName,
-            file,
-            fileOptions: const FileOptions(
-              contentType: 'audio/mpeg', // Format pour .m4a/.mp3
-              upsert: true,
-            ),
-          );
-
-      // Récupération du lien public
-      final String publicUrl = _client.storage
-          .from('audios')
-          .getPublicUrl(fileName);
-
-      debugPrint(" Upload réussi : $publicUrl");
-      return publicUrl;
+      // Récupération de l'URL publique (Identique pour les deux)
+      return _client.storage.from('audios').getPublicUrl(fileName);
     } catch (e) {
-      debugPrint(" Erreur Upload Supabase : $e");
+      debugPrint("❌ Erreur Storage Universel : $e");
       return null;
     }
   }

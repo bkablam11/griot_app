@@ -14,7 +14,11 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // 0. Charger les variables d'environnement
-  await dotenv.load(fileName: "assets/.env");
+  try {
+    await dotenv.load(fileName: "assets/.env");
+  } catch (e) {
+    print("Erreur chargement env: $e");
+  }
 
   // 1. Firebase
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);

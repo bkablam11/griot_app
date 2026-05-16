@@ -9,6 +9,10 @@ import '../../core/services/storage_service.dart';
 import 'dart:io';
 import '../../core/services/ai_service.dart';
 import '../home/main_screen.dart';
+import 'package:file_picker/file_picker.dart'; // <--- NOUVEAU
+import 'dart:typed_data'; // Pour corriger l'erreur 'Uint8List'
+import 'package:flutter/foundation.dart'
+    show kIsWeb; // Pour corriger l'erreur 'kIsWeb'
 
 class RecordPage extends StatefulWidget {
   const RecordPage({super.key});
@@ -46,6 +50,31 @@ class _RecordPageState extends State<RecordPage> {
     super.dispose();
   }
 
+  // --- NOUVELLE FONCTION : SÉLECTION DE FICHIER ---
+  Future<void> pickAudioFile() async {
+    try {
+      FilePickerResult? result = await FilePicker.pickFiles(
+        type: FileType.audio,
+        allowMultiple: false,
+        withData: true, // INDISPENSABLE POUR LE WEB (récupère les bytes)
+      );
+      if (result != null) {
+        if (kIsWeb) {
+          // Sur Web, on utilise les bytes
+          _handleFinalSave(
+            path: result.files.single.name,
+            bytes: result.files.single.bytes,
+          );
+        } else {
+          // Sur Mobile, on utilise le path
+          _handleFinalSave(path: result.files.single.path!);
+        }
+      }
+    } catch (e) {
+      debugPrint("Erreur sélection : $e");
+    }
+  }
+
   String _formatDuration(int seconds) {
     final minutes = seconds ~/ 60;
     final remainingSeconds = seconds % 60;
@@ -81,11 +110,24 @@ class _RecordPageState extends State<RecordPage> {
     if (path != null) _showSaveDialog(path);
   }
 
-  Future<void> _handleFinalSave(String path) async {
+  // Ajoute l'argument optionnel Uint8List? bytes
+  Future<void> _handleFinalSave({
+    required String path,
+    Uint8List? bytes,
+  }) async {
     setState(() => isUploading = true);
+
     try {
-      String fileName = "audio_${DateTime.now().millisecondsSinceEpoch}.m4a";
-      final storageUrl = await StorageService().uploadAudio(path, fileName);
+      String extension = path.split('.').last;
+      String fileName =
+          "audio_${DateTime.now().millisecondsSinceEpoch}.$extension";
+
+      // ON APPELLE NOTRE NOUVEAU SERVICE UNIVERSEL
+      final storageUrl = await StorageService().uploadAudio(
+        fileName: fileName,
+        localPath: kIsWeb ? null : path,
+        fileBytes: bytes,
+      );
 
       if (storageUrl != null) {
         String finalTitle = _titleController.text.isEmpty
@@ -197,7 +239,7 @@ class _RecordPageState extends State<RecordPage> {
                         backgroundColor: const Color(0xFF141414),
                         foregroundColor: Colors.white,
                       ),
-                      onPressed: () => _handleFinalSave(path),
+                      onPressed: () => _handleFinalSave(path: path),
                       child: const Text("CONFIRMER"),
                     ),
                   ],
@@ -291,7 +333,7 @@ class _RecordPageState extends State<RecordPage> {
 
             const SizedBox(height: 50),
 
-            // --- SECTION ENREGISTREMENT ---
+            // --- SECTION ENREGISTREMENT & UPLOAD ---
             Center(
               child: Column(
                 children: [
@@ -305,47 +347,71 @@ class _RecordPageState extends State<RecordPage> {
                   ),
                   const SizedBox(height: 20),
 
-                  GestureDetector(
-                    onTap: isRecording ? stopRecording : startRecording,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        // Anneau de pulsation quand on enregistre
-                        if (isRecording) const _PulseAnimation(),
-
-                        AnimatedContainer(
-                          duration: const Duration(milliseconds: 400),
-                          width: 100,
-                          height: 100,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: isRecording
-                                ? Colors.red
-                                : const Color(0xFF141414),
-                            boxShadow: [
-                              BoxShadow(
-                                color: isRecording
-                                    ? Colors.red.withAlpha(77)
-                                    : Colors.black26,
-                                blurRadius: 20,
-                                offset: const Offset(0, 10),
-                              ),
-                            ],
-                          ),
-                          child: Icon(
-                            isRecording
-                                ? Icons.stop_rounded
-                                : Icons.mic_rounded,
-                            color: Colors.white,
-                            size: 45,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // BOUTON UPLOAD FICHIER (Gauche)
+                      if (!isRecording)
+                        IconButton(
+                          onPressed: pickAudioFile,
+                          icon: const Icon(
+                            Icons.file_upload_outlined,
+                            color: Color(0xFF8C6239),
+                            size: 30,
                           ),
                         ),
-                      ],
-                    ),
+
+                      const SizedBox(width: 20),
+
+                      // BOUTON MICRO CENTRAL
+                      GestureDetector(
+                        onTap: isRecording ? stopRecording : startRecording,
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            if (isRecording) const _PulseAnimation(),
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 400),
+                              width: 90,
+                              height: 90,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: isRecording
+                                    ? Colors.red
+                                    : const Color(0xFF141414),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: isRecording
+                                        ? Colors.red.withAlpha(77)
+                                        : Colors.black26,
+                                    blurRadius: 20,
+                                    offset: const Offset(0, 10),
+                                  ),
+                                ],
+                              ),
+                              child: Icon(
+                                isRecording
+                                    ? Icons.stop_rounded
+                                    : Icons.mic_rounded,
+                                color: Colors.white,
+                                size: 40,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(width: 20),
+
+                      // ESPACE VIDE POUR L'ÉQUILIBRE (ou autre icône à droite)
+                      if (!isRecording) const SizedBox(width: 48),
+                    ],
                   ),
                   const SizedBox(height: 25),
                   Text(
-                    isRecording ? "L'ANCIEN PARLE..." : "APPUYEZ POUR CAPTURER",
+                    isRecording
+                        ? "L'ANCIEN PARLE..."
+                        : "ENREGISTRER OU IMPORTER",
                     style: GoogleFonts.inter(
                       fontSize: 10,
                       letterSpacing: 2,
