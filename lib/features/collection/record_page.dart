@@ -6,13 +6,12 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../../core/services/storage_service.dart';
-import 'dart:io';
+import 'dart:io' show Directory, File;
 import '../../core/services/ai_service.dart';
 import '../home/main_screen.dart';
-import 'package:file_picker/file_picker.dart'; // <--- NOUVEAU
-import 'dart:typed_data'; // Pour corriger l'erreur 'Uint8List'
-import 'package:flutter/foundation.dart'
-    show kIsWeb; // Pour corriger l'erreur 'kIsWeb'
+import 'package:file_picker/file_picker.dart';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class RecordPage extends StatefulWidget {
   const RecordPage({super.key});
@@ -30,7 +29,6 @@ class _RecordPageState extends State<RecordPage> {
   late AudioRecorder audioRecorder;
   bool isRecording = false;
   bool isUploading = false;
-  String? audioPath;
   Timer? _timer;
   int _recordDuration = 0;
 
@@ -50,25 +48,20 @@ class _RecordPageState extends State<RecordPage> {
     super.dispose();
   }
 
-  // --- NOUVELLE FONCTION : SÉLECTION DE FICHIER ---
+  // --- SÉLECTION DE FICHIER (Compatible Web/Mobile) ---
   Future<void> pickAudioFile() async {
     try {
       FilePickerResult? result = await FilePicker.pickFiles(
         type: FileType.audio,
         allowMultiple: false,
-        withData: true, // INDISPENSABLE POUR LE WEB (récupère les bytes)
+        withData: true,
       );
       if (result != null) {
-        if (kIsWeb) {
-          // Sur Web, on utilise les bytes
-          _handleFinalSave(
-            path: result.files.single.name,
-            bytes: result.files.single.bytes,
-          );
-        } else {
-          // Sur Mobile, on utilise le path
-          _handleFinalSave(path: result.files.single.path!);
-        }
+        // On passe le nom et les bytes au dialogue
+        _showSaveDialog(
+          path: result.files.single.name,
+          bytes: result.files.single.bytes,
+        );
       }
     } catch (e) {
       debugPrint("Erreur sélection : $e");
@@ -81,16 +74,23 @@ class _RecordPageState extends State<RecordPage> {
     return '${minutes.toString().padLeft(2, '0')}:${remainingSeconds.toString().padLeft(2, '0')}';
   }
 
+  // --- ENREGISTREMENT (Compatible Web/Mobile) ---
   Future<void> startRecording() async {
     try {
       if (await audioRecorder.hasPermission()) {
-        final Directory appDocDir = await getApplicationDocumentsDirectory();
-        final String filePath =
-            '${appDocDir.path}/griot_${DateTime.now().millisecondsSinceEpoch}.m4a';
-        await audioRecorder.start(const RecordConfig(), path: filePath);
+        String? filePath;
+
+        if (!kIsWeb) {
+          final Directory appDocDir = await getApplicationDocumentsDirectory();
+          filePath =
+              '${appDocDir.path}/griot_${DateTime.now().millisecondsSinceEpoch}.m4a';
+        }
+
+        // Sur Web, path est ignoré par le package record, il crée un Blob
+        await audioRecorder.start(const RecordConfig(), path: filePath ?? '');
+
         setState(() {
           isRecording = true;
-          audioPath = filePath;
           _recordDuration = 0;
         });
         _timer = Timer.periodic(
@@ -107,10 +107,12 @@ class _RecordPageState extends State<RecordPage> {
     _timer?.cancel();
     final path = await audioRecorder.stop();
     setState(() => isRecording = false);
-    if (path != null) _showSaveDialog(path);
+    if (path != null) {
+      _showSaveDialog(path: path);
+    }
   }
 
-  // Ajoute l'argument optionnel Uint8List? bytes
+  // --- LOGIQUE DE SAUVEGARDE FINALE ---
   Future<void> _handleFinalSave({
     required String path,
     Uint8List? bytes,
@@ -118,11 +120,11 @@ class _RecordPageState extends State<RecordPage> {
     setState(() => isUploading = true);
 
     try {
-      String extension = path.split('.').last;
+      String extension = path.contains('.') ? path.split('.').last : 'm4a';
       String fileName =
           "audio_${DateTime.now().millisecondsSinceEpoch}.$extension";
 
-      // ON APPELLE NOTRE NOUVEAU SERVICE UNIVERSEL
+      // Appel au service de stockage (ton service universel)
       final storageUrl = await StorageService().uploadAudio(
         fileName: fileName,
         localPath: kIsWeb ? null : path,
@@ -133,8 +135,8 @@ class _RecordPageState extends State<RecordPage> {
         String finalTitle = _titleController.text.isEmpty
             ? "Récit sans titre"
             : _titleController.text;
-        String imageUrl =
-            "https://image.pollinations.ai/prompt/african_tradition_art?nologo=true";
+        String finalImageUrl =
+            "https://image.pollinations.ai/prompt/african_art?nologo=true";
 
         try {
           final aiResult = await AIService().enrichirRecit(
@@ -145,16 +147,13 @@ class _RecordPageState extends State<RecordPage> {
             final String encodedPrompt = Uri.encodeComponent(
               aiResult['prompt'] ?? "African art",
             );
-            // On ajoute un seed aléatoire pour éviter le cache et les blocages 403
-            final int seed = DateTime.now().millisecondsSinceEpoch;
-            final String imageUrl =
-                "https://image.pollinations.ai/prompt/${encodedPrompt}?nologo=true&seed=$seed&width=1024&height=1024";
+            finalImageUrl =
+                "https://image.pollinations.ai/prompt/$encodedPrompt?nologo=true&seed=${DateTime.now().millisecondsSinceEpoch}";
           }
         } catch (e) {
-          debugPrint("L'IA a échoué : $e");
+          debugPrint("IA Error: $e");
         }
 
-        final String timestamp = DateTime.now().toIso8601String();
         final storyData = {
           'id': DateTime.now().millisecondsSinceEpoch.toString(),
           'title': finalTitle,
@@ -162,8 +161,8 @@ class _RecordPageState extends State<RecordPage> {
           'summary': _summaryController.text,
           'language': _selectedLanguage,
           'audioUrl': storageUrl,
-          'imageUrl': imageUrl,
-          'createdAt': timestamp,
+          'imageUrl': finalImageUrl,
+          'createdAt': DateTime.now().toIso8601String(),
           'likesCount': 0,
         };
 
@@ -171,17 +170,10 @@ class _RecordPageState extends State<RecordPage> {
         await Hive.box('village_box').add(storyData);
 
         if (mounted) {
-          Navigator.pop(context);
           Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(builder: (context) => const MainScreen()),
             (route) => false,
-          );
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              backgroundColor: Color(0xFF5A5A40),
-              content: Text("Parole sauvegardée avec succès."),
-            ),
           );
         }
       }
@@ -192,7 +184,7 @@ class _RecordPageState extends State<RecordPage> {
     }
   }
 
-  void _showSaveDialog(String path) {
+  void _showSaveDialog({required String path, Uint8List? bytes}) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -201,14 +193,11 @@ class _RecordPageState extends State<RecordPage> {
           return AlertDialog(
             backgroundColor: const Color(0xFFF5F5F0),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(2),
-            ), // Style Brutaliste
+              borderRadius: BorderRadius.circular(15),
+            ),
             title: Text(
-              "Vérification",
-              style: GoogleFonts.cormorantGaramond(
-                fontWeight: FontWeight.bold,
-                fontSize: 24,
-              ),
+              "Consigner la parole",
+              style: GoogleFonts.cormorantGaramond(fontWeight: FontWeight.bold),
             ),
             content: isUploading
                 ? Column(
@@ -217,31 +206,26 @@ class _RecordPageState extends State<RecordPage> {
                       const CircularProgressIndicator(color: Color(0xFF8C6239)),
                       const SizedBox(height: 20),
                       Text(
-                        "Le Village prépare votre place...",
-                        style: GoogleFonts.inter(fontSize: 14),
+                        "L'IA sublime le récit...",
+                        style: GoogleFonts.inter(),
                       ),
                     ],
                   )
-                : Text(
-                    "Voulez-vous confier le récit de ${_elderController.text} au Village ?",
-                    style: GoogleFonts.inter(),
-                  ),
+                : Text("Voulez-vous confier cette sagesse au Village ?"),
             actions: isUploading
                 ? []
                 : [
                     TextButton(
                       onPressed: () => Navigator.pop(context),
-                      child: const Text(
-                        "REPRENDRE",
-                        style: TextStyle(color: Colors.black54),
-                      ),
+                      child: const Text("ANNULER"),
                     ),
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF141414),
                         foregroundColor: Colors.white,
                       ),
-                      onPressed: () => _handleFinalSave(path: path),
+                      onPressed: () =>
+                          _handleFinalSave(path: path, bytes: bytes),
                       child: const Text("CONFIRMER"),
                     ),
                   ],
@@ -255,178 +239,170 @@ class _RecordPageState extends State<RecordPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F0),
-      appBar: AppBar(
-        title: Text(
-          "COLLECTE",
-          style: GoogleFonts.inter(
-            fontSize: 11,
-            letterSpacing: 3,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        centerTitle: true,
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 30),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 10),
-            Text(
-              "L'Oracle",
-              style: GoogleFonts.cormorantGaramond(
-                fontSize: 42,
-                fontWeight: FontWeight.bold,
-                height: 1,
-              ),
-            ),
-            Text(
-              "Capturez la sagesse des anciens",
-              style: GoogleFonts.inter(fontSize: 13, color: Colors.black45),
-            ),
-            const SizedBox(height: 40),
-
-            // --- SECTION FORMULAIRE ---
-            _buildCustomField(
-              "NOM DE L'ANCIEN",
-              _elderController,
-              hint: "Papi Konan...",
-            ),
-            _buildCustomField(
-              "TITRE PROVISOIRE",
-              _titleController,
-              hint: "La tortue et le lièvre...",
-            ),
-
-            // Sélecteur de langue plus stylé
-            Text(
-              "LANGUE",
-              style: GoogleFonts.inter(
-                fontSize: 9,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 2,
-                color: const Color(0xFF8C6239),
-              ),
-            ),
-            DropdownButton<String>(
-              value: _selectedLanguage,
-              isExpanded: true,
-              underline: Container(height: 1, color: Colors.black12),
-              items: ['Français', 'Dioula', 'Baoulé', 'Agni']
-                  .map(
-                    (l) => DropdownMenuItem(
-                      value: l,
-                      child: Text(l, style: GoogleFonts.inter(fontSize: 15)),
-                    ),
-                  )
-                  .toList(),
-              onChanged: (v) => setState(() => _selectedLanguage = v!),
-            ),
-
-            const SizedBox(height: 30),
-            _buildCustomField(
-              "RÉSUMÉ DU RÉCIT",
-              _summaryController,
-              hint: "De quoi parle cette histoire ?",
-              maxLines: 3,
-            ),
-
-            const SizedBox(height: 50),
-
-            // --- SECTION ENREGISTREMENT & UPLOAD ---
-            Center(
-              child: Column(
-                children: [
-                  Text(
-                    _formatDuration(_recordDuration),
-                    style: GoogleFonts.inter(
-                      fontSize: 50,
-                      fontWeight: FontWeight.w100,
-                      letterSpacing: -2,
-                    ),
+      body: Center(
+        // On centre tout pour le Web
+        child: Container(
+          constraints: const BoxConstraints(
+            maxWidth: 600,
+          ), // Empêche l'étirement sur PC
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 50),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "L'Oracle",
+                  style: GoogleFonts.cormorantGaramond(
+                    fontSize: 48,
+                    fontWeight: FontWeight.bold,
+                    height: 1,
                   ),
-                  const SizedBox(height: 20),
+                ),
+                Text(
+                  "Capturez la sagesse des anciens",
+                  style: GoogleFonts.inter(fontSize: 14, color: Colors.black45),
+                ),
+                const SizedBox(height: 40),
 
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                _buildCustomField(
+                  "NOM DE L'ANCIEN",
+                  _elderController,
+                  hint: "Papi ou Mami...",
+                ),
+                _buildCustomField(
+                  "TITRE DU RÉCIT",
+                  _titleController,
+                  hint: "La légende de...",
+                ),
+
+                Text(
+                  "LANGUE",
+                  style: GoogleFonts.inter(
+                    fontSize: 9,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 2,
+                    color: const Color(0xFF8C6239),
+                  ),
+                ),
+                DropdownButton<String>(
+                  value: _selectedLanguage,
+                  isExpanded: true,
+                  underline: Container(height: 1, color: Colors.black12),
+                  items: ['Français', 'Dioula', 'Baoulé', 'Agni']
+                      .map((l) => DropdownMenuItem(value: l, child: Text(l)))
+                      .toList(),
+                  onChanged: (v) => setState(() => _selectedLanguage = v!),
+                ),
+
+                const SizedBox(height: 30),
+                _buildCustomField(
+                  "RÉSUMÉ DU RÉCIT",
+                  _summaryController,
+                  hint: "L'IA utilisera ce texte pour illustrer l'histoire.",
+                  maxLines: 3,
+                ),
+
+                const SizedBox(height: 60),
+
+                // --- ZONE DE CAPTURE ---
+                Center(
+                  child: Column(
                     children: [
-                      // BOUTON UPLOAD FICHIER (Gauche)
-                      if (!isRecording)
-                        IconButton(
-                          onPressed: pickAudioFile,
-                          icon: const Icon(
-                            Icons.file_upload_outlined,
-                            color: Color(0xFF8C6239),
-                            size: 30,
-                          ),
-                        ),
-
-                      const SizedBox(width: 20),
-
-                      // BOUTON MICRO CENTRAL
-                      GestureDetector(
-                        onTap: isRecording ? stopRecording : startRecording,
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            if (isRecording) const _PulseAnimation(),
-                            AnimatedContainer(
-                              duration: const Duration(milliseconds: 400),
-                              width: 90,
-                              height: 90,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: isRecording
-                                    ? Colors.red
-                                    : const Color(0xFF141414),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: isRecording
-                                        ? Colors.red.withAlpha(77)
-                                        : Colors.black26,
-                                    blurRadius: 20,
-                                    offset: const Offset(0, 10),
-                                  ),
-                                ],
-                              ),
-                              child: Icon(
-                                isRecording
-                                    ? Icons.stop_rounded
-                                    : Icons.mic_rounded,
-                                color: Colors.white,
-                                size: 40,
-                              ),
-                            ),
-                          ],
+                      Text(
+                        _formatDuration(_recordDuration),
+                        style: GoogleFonts.inter(
+                          fontSize: 60,
+                          fontWeight: FontWeight.w100,
+                          letterSpacing: -2,
                         ),
                       ),
+                      const SizedBox(height: 30),
 
-                      const SizedBox(width: 20),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          // BOUTON IMPORTER
+                          if (!isRecording)
+                            _buildActionButton(
+                              Icons.file_upload_outlined,
+                              pickAudioFile,
+                            ),
 
-                      // ESPACE VIDE POUR L'ÉQUILIBRE (ou autre icône à droite)
-                      if (!isRecording) const SizedBox(width: 48),
+                          const SizedBox(width: 30),
+
+                          // BOUTON MICRO AVEC PULSATION
+                          GestureDetector(
+                            onTap: isRecording ? stopRecording : startRecording,
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                if (isRecording) const _PulseAnimation(),
+                                AnimatedContainer(
+                                  duration: const Duration(milliseconds: 300),
+                                  width: 100,
+                                  height: 100,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: isRecording
+                                        ? Colors.red
+                                        : const Color(0xFF141414),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black26,
+                                        blurRadius: 15,
+                                        offset: const Offset(0, 8),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Icon(
+                                    isRecording
+                                        ? Icons.stop_rounded
+                                        : Icons.mic_rounded,
+                                    color: Colors.white,
+                                    size: 45,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          const SizedBox(width: 30),
+                          if (!isRecording) const SizedBox(width: 45),
+                        ],
+                      ),
+                      const SizedBox(height: 25),
+                      Text(
+                        isRecording
+                            ? "L'ANCIEN PARLE..."
+                            : "DÉMARRER LA COLLECTE",
+                        style: GoogleFonts.inter(
+                          fontSize: 10,
+                          letterSpacing: 2,
+                          fontWeight: FontWeight.w800,
+                          color: isRecording ? Colors.red : Colors.black38,
+                        ),
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 25),
-                  Text(
-                    isRecording
-                        ? "L'ANCIEN PARLE..."
-                        : "ENREGISTRER OU IMPORTER",
-                    style: GoogleFonts.inter(
-                      fontSize: 10,
-                      letterSpacing: 2,
-                      fontWeight: FontWeight.w800,
-                      color: isRecording ? Colors.red : Colors.black38,
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-            const SizedBox(height: 50),
-          ],
+          ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildActionButton(IconData icon, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.black12),
+        ),
+        child: Icon(icon, color: const Color(0xFF8C6239), size: 24),
       ),
     );
   }
@@ -454,10 +430,9 @@ class _RecordPageState extends State<RecordPage> {
           TextField(
             controller: controller,
             maxLines: maxLines,
-            style: GoogleFonts.inter(fontSize: 16),
             decoration: InputDecoration(
               hintText: hint,
-              hintStyle: const TextStyle(color: Colors.black12),
+              hintStyle: const TextStyle(color: Colors.black12, fontSize: 14),
               enabledBorder: const UnderlineInputBorder(
                 borderSide: BorderSide(color: Colors.black12),
               ),
@@ -472,10 +447,8 @@ class _RecordPageState extends State<RecordPage> {
   }
 }
 
-// Widget pour l'animation de pulsation du micro
 class _PulseAnimation extends StatefulWidget {
   const _PulseAnimation();
-
   @override
   State<_PulseAnimation> createState() => _PulseAnimationState();
 }
@@ -483,7 +456,6 @@ class _PulseAnimation extends StatefulWidget {
 class _PulseAnimationState extends State<_PulseAnimation>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
-
   @override
   void initState() {
     _controller = AnimationController(
@@ -502,9 +474,9 @@ class _PulseAnimationState extends State<_PulseAnimation>
   @override
   Widget build(BuildContext context) {
     return FadeTransition(
-      opacity: Tween(begin: 0.5, end: 0.0).animate(_controller),
+      opacity: Tween(begin: 0.6, end: 0.0).animate(_controller),
       child: ScaleTransition(
-        scale: Tween(begin: 1.0, end: 1.8).animate(_controller),
+        scale: Tween(begin: 1.0, end: 2.0).animate(_controller),
         child: Container(
           width: 100,
           height: 100,
