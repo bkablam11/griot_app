@@ -1,0 +1,14 @@
+{
+    "name": "GRIOT - Archive Numérique Africaine",
+    "short_name": "GRIOT",
+    "description": "Sauvegardez la sagesse africaine",
+    "start_url": ".",
+    "display": "standalone",
+    "background_color": "#F5F5F0",
+    "theme_color": "#8C6239",
+    "orientation": "portrait-primary",
+    "icons": [
+        { "src": "icons/Icon-192.png", "sizes": "192x192", "type": "image/png" },
+        { "src": "icons/Icon-512.png", "sizes": "512x512", "type": "image/png" }
+    ]
+}
