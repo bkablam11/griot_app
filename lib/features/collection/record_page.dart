@@ -145,8 +145,10 @@ class _RecordPageState extends State<RecordPage> {
             final String encodedPrompt = Uri.encodeComponent(
               aiResult['prompt'] ?? "African art",
             );
-            imageUrl =
-                "https://image.pollinations.ai/prompt/$encodedPrompt?nologo=true";
+            // On ajoute un seed aléatoire pour éviter le cache et les blocages 403
+            final int seed = DateTime.now().millisecondsSinceEpoch;
+            final String imageUrl =
+                "https://image.pollinations.ai/prompt/${encodedPrompt}?nologo=true&seed=$seed&width=1024&height=1024";
           }
         } catch (e) {
           debugPrint("L'IA a échoué : $e");

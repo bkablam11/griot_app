@@ -74,7 +74,7 @@ flutter:
 
   # Assets (env file + images)
   assets:
-    - assets/.env
+    - assets/.env  # <--- Pas d'espace en trop, respecte les tirets
 
   # To add assets to your application, add an assets section, like this:
   # assets:

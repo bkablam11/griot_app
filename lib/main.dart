@@ -16,24 +16,29 @@ void main() async {
   // 0. Charger les variables d'environnement
   try {
     await dotenv.load(fileName: "assets/.env");
+
+    print(" .env chargé");
+    // 1. Firebase
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    print(" Firebase chargé");
+    // 2. Supabase (Utiliser les variables d'env pour la sécurité)
+    await Supabase.initialize(
+      url: dotenv.env['SUPABASE_URL']!,
+      anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
+    );
+
+    print("Supabase chargé");
+
+    // 3. Hive (Offline storage)
+    await Hive.initFlutter();
+    await Hive.openBox('village_box');
+    // Connexion silencieuse au démarrage
+    await AuthService().signInAnonymously();
   } catch (e) {
     print("Erreur chargement env: $e");
   }
-
-  // 1. Firebase
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-
-  // 2. Supabase (Utiliser les variables d'env pour la sécurité)
-  await Supabase.initialize(
-    url: dotenv.env['SUPABASE_URL']!,
-    anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
-  );
-
-  // 3. Hive (Offline storage)
-  await Hive.initFlutter();
-  await Hive.openBox('village_box');
-  // Connexion silencieuse au démarrage
-  await AuthService().signInAnonymously();
 
   runApp(const GriotApp());
 }

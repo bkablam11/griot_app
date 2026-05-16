@@ -51,8 +51,16 @@ class VillagePage extends StatelessWidget {
 
           final docs = snapshot.data!.docs;
 
-          return ListView.builder(
+          return GridView.builder(
             padding: const EdgeInsets.all(20),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: MediaQuery.of(context).size.width > 900
+                  ? 3
+                  : 1, // 3 colonnes sur PC, 1 sur Mobile
+              crossAxisSpacing: 20,
+              mainAxisSpacing: 20,
+              childAspectRatio: 0.8, // Ajuste la hauteur des cartes
+            ),
             itemCount: docs.length,
             itemBuilder: (context, index) {
               final data = docs[index].data() as Map<String, dynamic>;
