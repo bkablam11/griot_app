@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -20,6 +21,16 @@ class AuthService {
   // Connexion Google (Code standard stable)
   Future<User?> signInWithGoogle() async {
     try {
+      // Si on est sur le Web, on peut essayer le flux spécifique Firebase
+      if (kIsWeb) {
+        GoogleAuthProvider googleProvider = GoogleAuthProvider();
+        // On utilise signInWithPopup ou signInWithRedirect
+        // Le redirect est le plus sûr contre les blocages
+        UserCredential userCredential = await FirebaseAuth.instance
+            .signInWithPopup(googleProvider);
+        return userCredential.user;
+      }
+
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       if (googleUser == null) return null;
 
