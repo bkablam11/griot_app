@@ -1,0 +1,35 @@
+name: Deploy to Firebase Hosting on merge
+on:
+  push:
+    branches:
+      - main
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      # 1. Installer Flutter sur le serveur GitHub
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          
+      # 2. Créer le fichier .env à partir du secret GitHub (qu'on a créé ensemble)
+      - name: Create .env file
+        run: |
+          mkdir -p assets
+          echo "${{ secrets.ENV_FILE }}" > assets/.env
+          
+      # 3. Récupérer les dépendances
+      - run: flutter pub get
+      
+      # 4. Construire le site Web
+      - run: flutter build web --release
+      
+      # 5. Déployer sur Firebase Hosting
+      - uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_GRIOT_APP_PROJECT }}'
+          channelId: live
+          projectId: griot-app-project

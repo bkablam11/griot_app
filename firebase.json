@@ -1,1 +1,39 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"griot-app-project","appId":"1:1049223436785:android:990672dfaf68af889b4c50","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"griot-app-project","configurations":{"android":"1:1049223436785:android:990672dfaf68af889b4c50","ios":"1:1049223436785:ios:4d2f152771a5421e9b4c50","macos":"1:1049223436785:ios:4d2f152771a5421e9b4c50","web":"1:1049223436785:web:98f687a0a06dacfe9b4c50","windows":"1:1049223436785:web:2130d923393485979b4c50"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "griot-app-project",
+          "appId": "1:1049223436785:android:990672dfaf68af889b4c50",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "griot-app-project",
+          "configurations": {
+            "android": "1:1049223436785:android:990672dfaf68af889b4c50",
+            "ios": "1:1049223436785:ios:4d2f152771a5421e9b4c50",
+            "macos": "1:1049223436785:ios:4d2f152771a5421e9b4c50",
+            "web": "1:1049223436785:web:98f687a0a06dacfe9b4c50",
+            "windows": "1:1049223436785:web:2130d923393485979b4c50"
+          }
+        }
+      }
+    }
+  },
+  "hosting": {
+    "public": "build/web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  }
+}
