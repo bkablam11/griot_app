@@ -53,6 +53,8 @@ dependencies:
   hive: ^2.2.3
   file_picker: ^11.0.2
   foundation: ^0.0.5
+  http: ^1.6.0
+  cupertino_icons: ^1.0.8 # <--- Vérifie que cette ligne est présente
 
 
 dev_dependencies:
@@ -70,7 +72,7 @@ flutter:
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.
-  uses-material-design: true
+  uses-material-design: true #
 
   # Assets (env file + images)
   assets:
