@@ -247,12 +247,13 @@ class _StoryDetailPageState extends State<StoryDetailPage> {
                       Center(
                         child: GestureDetector(
                           onTap: () async {
-                            if (isPlaying)
+                            if (isPlaying) {
                               await player.pause();
-                            else
+                            } else {
                               await player.play(
                                 UrlSource(liveData['audioUrl']),
                               );
+                            }
                           },
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 300),

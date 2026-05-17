@@ -12,6 +12,9 @@ import 'features/home/main_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // 0. Hive (Offline storage)
+  await Hive.initFlutter();
+  await Hive.openBox('village_box');
 
   // 0. Charger les variables d'environnement
   try {
@@ -24,16 +27,18 @@ void main() async {
     );
     print(" Firebase chargé");
     // 2. Supabase (Utiliser les variables d'env pour la sécurité)
-    await Supabase.initialize(
-      url: dotenv.env['SUPABASE_URL']!,
-      anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
-    );
+    final supabaseUrl =
+        dotenv.env['SUPABASE_URL'] ??
+        "https://pmfpnknkkhasycpgvneq.supabase.co";
+    final supabaseKey =
+        dotenv.env['SUPABASE_ANON_KEY'] ??
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBtZnBua25ra2hhc3ljcGd2bmVxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg4NjU0NjQsImV4cCI6MjA5NDQ0MTQ2NH0.1xLl-DW8LqZRkam73Q6eM6zXpOmmS4tNIkmJVGi4-yc";
 
-    print("Supabase chargé");
+    if (supabaseUrl.isNotEmpty) {
+      await Supabase.initialize(url: supabaseUrl, anonKey: supabaseKey);
+      print("Supabase chargé");
+    }
 
-    // 3. Hive (Offline storage)
-    await Hive.initFlutter();
-    await Hive.openBox('village_box');
     // Connexion silencieuse au démarrage
     await AuthService().signInAnonymously();
   } catch (e) {
