@@ -17,25 +17,25 @@ class RankData {
     RankData(
       name: "Apprenti Griot",
       icon: "🌱",
-      color: Color(0xFF5A5A40),
+      color: const Color(0xFF5A5A40),
       minStories: 0,
     ),
     RankData(
       name: "Messager du Village",
       icon: "🕊️",
-      color: Color(0xFF8C6239),
+      color: const Color(0xFF8C6239),
       minStories: 3,
     ), // Un oiseau pour le messager
     RankData(
       name: "Gardien du Savoir",
       icon: "🛡️",
-      color: Color(0xFF141414),
+      color: const Color(0xFF141414),
       minStories: 10,
     ),
     RankData(
       name: "Griot d'Or",
       icon: "👑",
-      color: Color(0xFFD4AF37),
+      color: const Color(0xFFD4AF37),
       minStories: 50,
     ),
   ];

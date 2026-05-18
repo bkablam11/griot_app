@@ -31,12 +31,14 @@ class ActualitePage extends StatelessWidget {
             .limit(30)
             .snapshots(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData)
+          if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
+          }
 
           final docs = snapshot.data!.docs;
-          if (docs.isEmpty)
+          if (docs.isEmpty) {
             return const Center(child: Text("Le village est calme..."));
+          }
 
           return ListView.builder(
             padding: const EdgeInsets.all(25),

@@ -1,119 +1,136 @@
-C'est une excellente approche. Avant de poser la première brique de code, il faut que le plan d'architecte soit impeccable. Voici le **Cahier des Charges complet et structuré** pour l'application **GRIOT**, optimisé pour Flutter et des solutions gratuites.
+# 📜 CAHIER DES CHARGES : APPLICATION "GRIOT" (V2.0)
+
+## 1. VISION ET OBJECTIFS
+**Griot** est une plateforme universelle (Web & Mobile) dédiée à la préservation du patrimoine oral africain.
+- **Mission** : Capturer la sagesse des anciens (contes, proverbes, généalogies) via l'audio.
+- **Innovation** : Utiliser l'IA pour transformer un enregistrement brut en une œuvre d'art numérique (titre poétique + illustration artistique).
+- **Philosophie** : Un design "Magazine de Luxe" qui traite la tradition avec le plus haut niveau d'élégance moderne.
 
 ---
 
-# CAHIER DES CHARGES : APPLICATION "GRIOT"
+## 2. PARCOURS UTILISATEURS (UX)
+L'application distingue deux types d'accès :
 
-## 1. VISION & OBJECTIFS
-**Griot** est une archive numérique de la sagesse africaine. 
-- **Mission** : Capturer les récits oraux (contes, généalogies, conseils) avant qu'ils ne disparaissent.
-- **Cible** : Les jeunes (Collecteurs) et les anciens (Griots).
-- **Valeur Ajoutée** : Transformer un simple audio en une "pièce de collection numérique" grâce à l'IA (texte et image).
+### A. Le Visiteur (Anonyme)
+- Accède instantanément au "Village" sans inscription.
+- Peut lire les récits, écouter les audios et laisser des commentaires.
+- Peut voter pour ses récits préférés (limité à 1 vote par jour par récit).
+- Doit se connecter pour devenir "Collecteur".
 
----
-
-## 2. IDENTITÉ VISUELLE (Design System)
-L'esthétique doit évoquer un **magazine d'art contemporain mélangé à des textures organiques**.
-
-*   **Palette de Couleurs** :
-    *   `Griot-Bg` (#F5F5F0) : Fond papier crème, reposant pour la lecture.
-    *   `Griot-Ink` (#141414) : Texte noir profond, élégant.
-    *   `Griot-Olive` (#5A5A40) : Pour les boutons secondaires et icônes liées à la nature.
-    *   `Griot-Earth` (#8C6239) : Pour les accents importants (bouton d'enregistrement).
-*   **Typographie** :
-    *   Titres : *Cormorant Garamond* (Serif), gras et italique pour le luxe.
-    *   Corps : *Inter* ou *Public Sans* (Sans-serif), pour une lisibilité parfaite.
-*   **Style UI** : 
-    *   Utilisation généreuse de l'espace vide (White space).
-    *   Bordures fines, pas d'ombres portées lourdes (style "Flat Brutalism").
+### B. Le Collecteur (Authentifié via Google)
+- Possède toutes les options du visiteur.
+- Accède au module de **Collecte** (Enregistrement/Importation).
+- Possède un **Tableau de Bord** ("Héritage") affichant son grade et ses statistiques.
+- Gagne des points et monte en grade selon son activité.
 
 ---
 
-## 3. FONCTIONNALITÉS PRINCIPALES (MVP)
+## 3. IDENTITÉ VISUELLE (Design System)
+L'esthétique est de type **"Brutalisme Élégant / Magazine Contemporain"**.
 
-### A. Module de Collecte (Cœur du projet)
-1.  **Formulaire de Contexte** : Saisie du titre, nom de l'ancien, lieu, et langue (ex: Baoulé, Dioula).
-2.  **Enregistreur Offline-First** : 
-    *   Enregistrement haute qualité (`.m4a`).
-    *   Visualiseur d'ondes sonores (feedback visuel).
-    *   Stockage local immédiat (pour éviter les pertes en cas de coupure réseau).
-3.  **Résumé Manuel** : Le collecteur écrit 3-4 lignes en français résumant l'histoire (sert de base à l'IA).
-
-### B. Le Laboratoire IA (Traitement Gratuit)
-1.  **Enrichissement par Gemini 1.5 Flash** (Plan gratuit) :
-    *   Analyse du résumé pour créer un titre accrocheur.
-    *   Génération d'un "Prompt" artistique pour illustrer l'histoire.
-2.  **Illustration (Image Generation)** : 
-    *   Utilisation de l'API de **Pollinations.ai** ou **Hugging Face** (Gratuit) pour générer une image basée sur le récit.
-
-### C. La "Grande Bibliothèque" (Le Village)
-1.  **Flux Magazine** : Liste des histoires présentées sous forme de cartes élégantes (style Pinterest/Magazine).
-2.  **Lecteur Immersif** : 
-    *   Affichage de l'image générée en plein écran.
-    *   Lecture de l'audio original.
-    *   Affichage du texte enrichi.
-
-### D. Profil & Héritage
-1.  **Système de Rangs** : Apprenti -> Messager -> Gardien -> Griot d'Or (basé sur le nombre de collectes).
-2.  **Statistiques** : Nombre de minutes de sagesse sauvegardées.
+- **Palette de Couleurs** :
+    - `Griot-Bg` (#F5F5F0) : Papier crème (fond principal).
+    - `Griot-Ink` (#141414) : Noir profond (titres et boutons).
+    - `Griot-Earth` (#8C6239) : Terre cuite (accents et progression).
+    - `Griot-Olive` (#5A5A40) : Vert organique (icônes et secondaire).
+- **Typographie** :
+    - Titres : *Cormorant Garamond* (Serif, Italique, Majestueux).
+    - Corps : *Inter* (Sans-serif, lisible, moderne).
+- **Layout** : Responsive (1 colonne sur mobile, 3 colonnes en mode grille sur Web).
 
 ---
 
-## 4. ARCHITECTURE TECHNIQUE
+## 4. SPÉCIFICATIONS FONCTIONNELLES
 
-### Stack Logicielle (100% Gratuite)
-*   **Framework** : Flutter (Multi-plateforme iOS/Android).
-*   **Base de données Cloud** : Firebase Firestore (Tier gratuit).
-*   **Stockage Fichiers** : Firebase Storage (pour les audios et images).
-*   **Base de données Locale** : Isar ou Hive (pour le mode offline).
-*   **Moteur IA** : Google Gemini API (Model: `gemini-1.5-flash`).
-*   **Génération d'Image** : API Pollinations.ai (ou intégration Hugging Face).
+### A. Module de Collecte ("L'Oracle")
+1. **Saisie** : Nom de l'ancien, titre provisoire, langue, résumé manuel.
+2. **Capture Audio** : 
+    - Enregistrement direct avec retour visuel (pulsation/timer).
+    - Importation de fichiers audio depuis le stockage local.
+3. **Traitement Universel** : Gestion hybride des fichiers (Chemin physique sur Mobile, Flux binaire/Bytes sur Web).
 
-### Flux de Données (Synchronisation)
-1.  L'utilisateur enregistre -> Sauvegarde locale (`Isar` + Fichier `.m4a`).
-2.  L'application détecte une connexion internet.
-3.  Upload de l'audio vers `Firebase Storage`.
-4.  Envoi du résumé à `Gemini`.
-5.  Gemini renvoie le texte propre et le prompt d'image.
-6.  Génération de l'image et sauvegarde finale dans `Firestore`.
+### B. Le Laboratoire IA (Enrichissement)
+1. **Gemini Engine** : Utilisation du prompt "Grand Griot" pour transformer le résumé en JSON contenant :
+    - Un titre majestueux (7 mots max).
+    - Un prompt artistique détaillé en anglais.
+2. **Imagerie** : Génération d'image via URL dynamique (Pollinations.ai) avec système de `seed` aléatoire pour éviter les blocages.
 
----
+### C. Le Village (Bibliothèque)
+1. **Grille Magazine** : Affichage des cartes avec images IA, titres et compteurs de likes.
+2. **Recherche & Filtres** : Recherche textuelle et filtrage par "Chips" de langues.
+3. **Détail du Récit** : Lecteur audio, texte complet, likes et commentaires en temps réel.
 
-## 5. MODÈLE DE DONNÉES (SCHEMA)
-
-### Objet : `Story`
-```dart
-{
-  "id": String,
-  "title": String,
-  "elder_name": String,
-  "language": String,
-  "summary_raw": String,      // Le résumé du jeune
-  "content_ai": String,       // Le texte retravaillé par Gemini
-  "audio_url": String,        // Lien Firebase Storage
-  "image_url": String,        // Lien image générée
-  "collector_id": String,     // ID de l'utilisateur
-  "created_at": Timestamp,
-  "is_published": Boolean     // Status de synchronisation
-}
-```
+### D. Système de Reconnaissance (Gamification)
+1. **Logique des Rangs** :
+    - *Apprenti* (0 récit)
+    - *Messager* (3 récits)
+    - *Gardien* (10 récits)
+    - *Griot d'Or* (50 récits)
+2. **Honneurs** : Cumul total des likes reçus.
+3. **Fil d'Activité** : Journal public annonçant les nouveaux récits et les montées en grade.
 
 ---
 
-## 6. CONTRAINTES & RÈGLES MÉTIER
-1.  **Respect de l'Ancien** : Toujours demander le nom de la source.
-2.  **Qualité Audio** : L'application doit bloquer l'enregistrement si le micro n'est pas accessible.
-3.  **Mode Hors-Ligne** : L'utilisateur doit pouvoir enregistrer 10 histoires sans jamais ouvrir internet.
+## 5. ARCHITECTURE TECHNIQUE (STACK 100% GRATUITE)
+
+| Composant | Solution retenue | Pourquoi ? |
+| :--- | :--- | :--- |
+| **Frontend** | Flutter | Multiplateforme (Web/Android/iOS) avec un seul code. |
+| **Authentification** | Firebase Auth | Gestion facile de Google Sign-in et de l'anonymat. |
+| **Base de Données** | Cloud Firestore | NoSQL temps réel (Streams) pour les likes/commentaires. |
+| **Stockage Audio** | **Supabase Storage** | 1 Go gratuit sans carte bancaire requise. |
+| **Stockage Local** | Hive | Mode offline-first pour la collecte sur le terrain. |
+| **Moteur IA** | Gemini 1.5 Flash | Rapide, puissant et gratuit (Google AI Studio). |
+| **Hébergement Web** | Firebase Hosting | Gratuit, rapide et gère le HTTPS nativement. |
 
 ---
 
-## 7. PROCHAINES ÉTAPES (ROADMAP)
-1.  **Phase 1** : Setup Flutter & Firebase + UI de base (Thème Magazine).
-2.  **Phase 2** : Module d'enregistrement audio & stockage local.
-3.  **Phase 3** : Intégration de l'IA (Gemini) pour le traitement des textes.
-4.  **Phase 4** : Module de génération d'image et Mur communautaire.
+## 6. MODÈLE DE DONNÉES (SCHEMA FIRESTORE)
+
+### Collection `stories`
+- `id` (String)
+- `title` (String)
+- `elderName` (String)
+- `summary` (String)
+- `audioUrl` (String)
+- `imageUrl` (String)
+- `language` (String)
+- `likesCount` (Number)
+- `collectorId` (String)
+- `createdAt` (ISO8601 String)
+- **Sub-collection** `comments` : `{text, userName, createdAt}`
+- **Sub-collection** `votes` : `{userId, lastVotedDate, isCertified}`
+
+### Collection `users`
+- `uid` (String)
+- `name` (String)
+- `storiesCount` (Number)
+- `rank` (Enum)
+- `lastActive` (String)
+
+### Collection `activities`
+- `type` (Enum: new_story / rank_up)
+- `userName` (String)
+- `title/newRank` (String)
+- `createdAt` (String)
 
 ---
 
-**Es-tu d'accord avec ce cahier des charges ?** 
-Si oui, nous pouvons passer à la **Phase 1** : La configuration de la structure du projet Flutter et la création du thème visuel (Couleurs et Polices).
+## 7. RÈGLES MÉTIER ET SÉCURITÉ
+1. **Anti-Triche** : Un seul vote par utilisateur par récit par cycle de 24h (réinitialisation à minuit).
+2. **Certification** : Les votes des comptes Gmail sont flaggés `isCertified` pour les récompenses réelles.
+3. **Secret d'API** : Les clés API doivent être obscurcies (coupées en deux dans le code) pour éviter la suppression automatique par les robots de sécurité.
+4. **CORS Web** : Les domaines de production doivent être autorisés dans Google Cloud Console pour l'OAuth.
+
+---
+
+## 8. GUIDE D'INSTALLATION (POUR UN AUTRE LANGAGE)
+1. Configurer un projet **Firebase** (Auth/Firestore).
+2. Configurer un projet **Supabase** (Storage avec RLS Policy `true` pour `anon`).
+3. Obtenir une clé **Google AI Studio** (Gemini).
+4. Développer le module de capture audio (gestion spécifique des Blobs sur Web).
+5. Créer la logique de transaction pour les montées en grade.
+6. Déployer sur un serveur HTTPS (obligatoire pour le micro).
+
+---
+*Ce document sert de référence absolue pour le développement de la plateforme GRIOT. Il garantit la cohérence du projet quel que soit l'outil de développement utilisé.*

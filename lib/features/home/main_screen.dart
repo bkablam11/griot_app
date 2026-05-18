@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../core/services/auth_service.dart';
 import '../collection/record_page.dart';
 import '../village/village_page.dart';
