@@ -20,12 +20,12 @@ void main() async {
   try {
     await dotenv.load(fileName: "assets/.env");
 
-    print(" .env chargé");
+    //print(" .env chargé");
     // 1. Firebase
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-    print(" Firebase chargé");
+    //print(" Firebase chargé");
     // 2. Supabase (Utiliser les variables d'env pour la sécurité)
     final supabaseUrl =
         dotenv.env['SUPABASE_URL'] ??
@@ -36,7 +36,7 @@ void main() async {
 
     if (supabaseUrl.isNotEmpty) {
       await Supabase.initialize(url: supabaseUrl, anonKey: supabaseKey);
-      print("Supabase chargé");
+      //print("Supabase chargé");
     }
 
     // Connexion silencieuse au démarrage

@@ -13,36 +13,23 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  // 1. On prépare les services et les streams
   final userService = UserService();
-  final user = FirebaseAuth.instance.currentUser;
-
-  late Stream<DocumentSnapshot<Map<String, dynamic>>> _userStream;
-  late Stream<int> _likesStream;
-  late Stream<QuerySnapshot> _myStoriesStream; // ✅ On ajoute celui-là
-
-  @override
-  void initState() {
-    super.initState();
-    // 2. On initialise les streams ICI pour qu'ils ne changent plus jamais
-    _userStream = userService.getUserProfile();
-    _likesStream = userService.getTotalLikesStream(user?.uid ?? "");
-    // ✅ On prépare la liste des histoires une seule fois
-    _myStoriesStream = FirebaseFirestore.instance
-        .collection('stories')
-        .where('collectorId', isEqualTo: user?.uid)
-        .orderBy('createdAt', descending: true)
-        .snapshots();
-  }
 
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null || user.isAnonymous) {
+      return const Center(
+        child: Text("Connectez-vous pour voir votre héritage"),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F0),
       body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-        stream: _userStream,
+        stream: userService.getUserProfile(),
         builder: (context, snapshot) {
-          // Gestion des états de chargement
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
               child: CircularProgressIndicator(color: Color(0xFF8C6239)),
@@ -56,7 +43,6 @@ class _ProfilePageState extends State<ProfilePage> {
           return CustomScrollView(
             physics: const BouncingScrollPhysics(),
             slivers: [
-              // HEADER : STYLE DASHBOARD
               SliverAppBar(
                 expandedHeight: 160,
                 backgroundColor: const Color(0xFF141414),
@@ -74,14 +60,12 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                 ),
               ),
-
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.all(25),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // SECTION RANG AVEC ICÔNE ANIMÉE
                       Center(
                         child: Column(
                           children: [
@@ -110,10 +94,7 @@ class _ProfilePageState extends State<ProfilePage> {
                           ],
                         ),
                       ),
-
                       const SizedBox(height: 40),
-
-                      // STATS DYNAMIQUES
                       Row(
                         children: [
                           _buildStatCard(
@@ -124,19 +105,16 @@ class _ProfilePageState extends State<ProfilePage> {
                           const SizedBox(width: 15),
                           Expanded(
                             child: StreamBuilder<int>(
-                              stream: _likesStream,
-                              builder: (context, likeSnap) {
-                                return _buildStatCard(
-                                  "HONNEURS",
-                                  (likeSnap.data ?? 0).toString(),
-                                  Icons.favorite_border,
-                                );
-                              },
+                              stream: userService.getTotalLikesStream(user.uid),
+                              builder: (context, likeSnap) => _buildStatCard(
+                                "HONNEURS",
+                                (likeSnap.data ?? 0).toString(),
+                                Icons.favorite_border,
+                              ),
                             ),
                           ),
                         ],
                       ),
-
                       const SizedBox(height: 50),
                       Text(
                         "VOS DERNIERS TRÉSORS",
@@ -147,19 +125,23 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                       const SizedBox(height: 20),
 
-                      // LISTE DES HISTOIRES
+                      // LISTE DES HISTOIRES (Query simplifiée pour éviter le blocage d'index au début)
                       StreamBuilder<QuerySnapshot>(
-                        stream: _myStoriesStream,
+                        stream: FirebaseFirestore.instance
+                            .collection('stories')
+                            .where('collectorId', isEqualTo: user.uid)
+                            .snapshots(),
                         builder: (context, storySnap) {
+                          if (storySnap.hasError)
+                            return Text("Erreur : ${storySnap.error}");
                           if (!storySnap.hasData) return const SizedBox();
-                          final docs = storySnap.data!.docs;
 
-                          if (docs.isEmpty) {
+                          final docs = storySnap.data!.docs;
+                          if (docs.isEmpty)
                             return const Text(
                               "Aucun récit pour le moment.",
                               style: TextStyle(color: Colors.black38),
                             );
-                          }
 
                           return ListView.builder(
                             shrinkWrap: true,
@@ -174,9 +156,6 @@ class _ProfilePageState extends State<ProfilePage> {
                                 decoration: BoxDecoration(
                                   color: Colors.white,
                                   borderRadius: BorderRadius.circular(15),
-                                  border: Border.all(
-                                    color: Colors.black.withOpacity(0.03),
-                                  ),
                                 ),
                                 child: ListTile(
                                   title: Text(
@@ -199,12 +178,7 @@ class _ProfilePageState extends State<ProfilePage> {
                                         size: 14,
                                       ),
                                       const SizedBox(width: 5),
-                                      Text(
-                                        "${story['likesCount'] ?? 0}",
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
+                                      Text("${story['likesCount'] ?? 0}"),
                                     ],
                                   ),
                                 ),
