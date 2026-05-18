@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
-import 'story_detail_page.dart';
 
 class ActualitePage extends StatelessWidget {
   const ActualitePage({super.key});
@@ -13,7 +12,7 @@ class ActualitePage extends StatelessWidget {
       backgroundColor: const Color(0xFFF5F5F0),
       appBar: AppBar(
         title: Text(
-          "FILS D'ACTUALITÉ",
+          "VIE DU VILLAGE",
           style: GoogleFonts.inter(
             fontSize: 11,
             letterSpacing: 3,
@@ -25,161 +24,59 @@ class ActualitePage extends StatelessWidget {
         elevation: 0,
       ),
       body: StreamBuilder<QuerySnapshot>(
+        // On écoute maintenant la collection globale des activités
         stream: FirebaseFirestore.instance
-            .collection('stories')
+            .collection('activities')
             .orderBy('createdAt', descending: true)
+            .limit(30)
             .snapshots(),
         builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return Center(child: Text("Erreur : ${snapshot.error}"));
-          }
-          if (!snapshot.hasData) {
+          if (!snapshot.hasData)
             return const Center(child: CircularProgressIndicator());
-          }
 
           final docs = snapshot.data!.docs;
-          if (docs.isEmpty) {
-            return const Center(
-              child: Text("Le village est calme pour le moment..."),
-            );
-          }
+          if (docs.isEmpty)
+            return const Center(child: Text("Le village est calme..."));
 
-          // --- LOGIQUE POUR TROUVER LE TOP RÉCIT (Sans l'erreur de type) ---
-          DocumentSnapshot? topStory;
-          int maxLikes = -1;
-
-          for (var doc in docs) {
-            final data = doc.data() as Map<String, dynamic>;
-            final int likes = data['likesCount'] ?? 0;
-            if (likes > maxLikes) {
-              maxLikes = likes;
-              topStory = doc;
-            }
-          }
-
-          return ListView(
-            padding: const EdgeInsets.all(20),
-            children: [
-              if (topStory != null) ...[
-                _buildSectionTitle("À LA UNE"),
-                _buildTopCard(context, topStory),
-                const SizedBox(height: 40),
-              ],
-              _buildSectionTitle("DÉPÊCHES DU VILLAGE"),
-              ...docs.map((doc) => _buildActivityItem(context, doc)),
-              const SizedBox(height: 50),
-            ],
+          return ListView.builder(
+            padding: const EdgeInsets.all(25),
+            itemCount: docs.length,
+            itemBuilder: (context, index) {
+              final data = docs[index].data() as Map<String, dynamic>;
+              return _buildActivityTile(data);
+            },
           );
         },
       ),
     );
   }
 
-  Widget _buildSectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
-      child: Row(
-        children: [
-          Text(
-            title,
-            style: GoogleFonts.inter(
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1.5,
-              color: const Color(0xFF8C6239),
-            ),
-          ),
-          const SizedBox(width: 10),
-          const Expanded(child: Divider(thickness: 1)),
-        ],
-      ),
-    );
-  }
+  Widget _buildActivityTile(Map<String, dynamic> data) {
+    bool isRankUp = data['type'] == 'rank_up';
 
-  Widget _buildTopCard(BuildContext context, DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
-    return GestureDetector(
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => StoryDetailPage(story: data, docId: doc.id),
-        ),
-      ),
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: const Color(0xFF141414),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.stars, color: Color(0xFFD4AF37), size: 18),
-                const SizedBox(width: 8),
-                Text(
-                  "LE RÉCIT LE PLUS HONORÉ",
-                  style: GoogleFonts.inter(
-                    color: Colors.white70,
-                    fontSize: 9,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 15),
-            Text(
-              data['title'] ?? "",
-              style: GoogleFonts.cormorantGaramond(
-                color: Colors.white,
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                const Icon(Icons.favorite, color: Colors.red, size: 14),
-                const SizedBox(width: 5),
-                Text(
-                  "${data['likesCount'] ?? 0} j'aime",
-                  style: GoogleFonts.inter(color: Colors.white54, fontSize: 11),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildActivityItem(BuildContext context, DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
-    DateTime date = DateTime.now();
-    try {
-      if (data['createdAt'] is Timestamp) {
-        date = (data['createdAt'] as Timestamp).toDate();
-      } else if (data['createdAt'] is String) {
-        date = DateTime.parse(data['createdAt']);
-      }
-    } catch (_) {}
-
+    // Formatage date
+    DateTime date = DateTime.parse(data['createdAt']);
     String timeStr = DateFormat('dd MMM, HH:mm').format(date);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 20),
+      margin: const EdgeInsets.only(bottom: 25),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Column(
-            children: [
-              const Icon(Icons.circle, size: 10, color: Color(0xFF8C6239)),
-              Container(width: 1, height: 50, color: Colors.black12),
-            ],
+          // ICÔNE DYNAMIQUE
+          CircleAvatar(
+            radius: 22,
+            backgroundColor: isRankUp
+                ? const Color(0xFFD4AF37)
+                : const Color(0xFF8C6239).withOpacity(0.1),
+            child: Icon(
+              isRankUp ? Icons.military_tech : Icons.menu_book_rounded,
+              color: isRankUp ? Colors.white : const Color(0xFF8C6239),
+              size: 20,
+            ),
           ),
           const SizedBox(width: 15),
+          // CONTENU
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -187,41 +84,63 @@ class ActualitePage extends StatelessWidget {
                 Text(
                   timeStr,
                   style: GoogleFonts.inter(
-                    fontSize: 10,
-                    color: Colors.black38,
+                    fontSize: 9,
+                    color: Colors.black26,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  "Nouveau récit : ${data['title']}",
-                  style: GoogleFonts.inter(
-                    color: Colors.black87,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          StoryDetailPage(story: data, docId: doc.id),
+                const SizedBox(height: 5),
+                if (isRankUp)
+                  // Message pour la montée en grade
+                  RichText(
+                    text: TextSpan(
+                      style: GoogleFonts.inter(
+                        color: Colors.black87,
+                        fontSize: 14,
+                        height: 1.4,
+                      ),
+                      children: [
+                        TextSpan(
+                          text: data['userName'],
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        const TextSpan(text: " a été élevé au rang de "),
+                        TextSpan(
+                          text: data['newRank'],
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF8C6239),
+                          ),
+                        ),
+                        const TextSpan(text: " ! Le Village le salue. 👏"),
+                      ],
+                    ),
+                  )
+                else
+                  // Message pour un nouveau récit
+                  RichText(
+                    text: TextSpan(
+                      style: GoogleFonts.inter(
+                        color: Colors.black87,
+                        fontSize: 14,
+                        height: 1.4,
+                      ),
+                      children: [
+                        TextSpan(
+                          text: data['userName'],
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        const TextSpan(text: " a consigné un nouveau récit : "),
+                        TextSpan(
+                          text: "\"${data['title']}\"",
+                          style: const TextStyle(
+                            fontStyle: FontStyle.italic,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  style: TextButton.styleFrom(
-                    padding: EdgeInsets.zero,
-                    minimumSize: const Size(0, 30),
-                  ),
-                  child: Text(
-                    "DÉCOUVRIR →",
-                    style: GoogleFonts.inter(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w900,
-                      color: const Color(0xFF5A5A40),
-                    ),
-                  ),
-                ),
               ],
             ),
           ),

@@ -15,6 +15,9 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart'
     as http; // <--- AJOUTE ÇA (flutter pub add http)
 
+import '../../core/services/user_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
 class RecordPage extends StatefulWidget {
   const RecordPage({super.key});
 
@@ -114,6 +117,16 @@ class _RecordPageState extends State<RecordPage> {
   }) async {
     setState(() => isUploading = true);
 
+    // 1. AJOUTE CETTE LIGNE ICI POUR DÉFINIR 'user'
+    final user = FirebaseAuth.instance.currentUser;
+
+    // ... le reste de ton code (upload audio, IA, etc.)
+
+    // Maintenant, quand tu arriveras à la ligne :
+    if (user != null && !user.isAnonymous) {
+      // L'erreur aura disparu !
+    }
+
     try {
       Uint8List? finalBytes = bytes;
 
@@ -163,10 +176,62 @@ class _RecordPageState extends State<RecordPage> {
           'imageUrl': finalImageUrl,
           'createdAt': DateTime.now().toIso8601String(),
           'likesCount': 0,
+          'collectorId': user?.uid,
         };
 
         await FirebaseFirestore.instance.collection('stories').add(storyData);
         await Hive.box('village_box').add(storyData);
+
+        // --- NOUVEAUTÉ : SYSTÈME DE RANGS & ACTIVITÉS ---
+        if (user != null && !user.isAnonymous) {
+          final userRef = FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid);
+          final activityRef = FirebaseFirestore.instance.collection(
+            'activities',
+          );
+          final userService = UserService();
+
+          await FirebaseFirestore.instance.runTransaction((transaction) async {
+            final snapshot = await transaction.get(userRef);
+
+            int oldCount = 0;
+            if (snapshot.exists) {
+              oldCount = (snapshot.data()?['storiesCount'] ?? 0);
+            }
+
+            int newCount = oldCount + 1;
+            String oldRank = userService.getRank(oldCount);
+            String newRank = userService.getRank(newCount);
+
+            // Mise à jour de l'utilisateur
+            transaction.set(userRef, {
+              'storiesCount': newCount,
+              'rank': newRank,
+              'name': user.displayName ?? user.email ?? "Griot",
+              'lastActive': DateTime.now().toIso8601String(),
+            }, SetOptions(merge: true));
+
+            // Enregistrer l'activité "Nouveau Récit"
+            transaction.set(activityRef.doc(), {
+              'type': 'new_story',
+              'userName': user.displayName ?? user.email ?? "Griot",
+              'title': finalTitle,
+              'createdAt': DateTime.now().toIso8601String(),
+            });
+
+            // Si montée en grade, enregistrer l'activité "Promotion"
+            if (oldRank != newRank) {
+              transaction.set(activityRef.doc(), {
+                'type': 'rank_up',
+                'userName': user.displayName ?? user.email ?? "Griot",
+                'newRank': newRank,
+                'createdAt': DateTime.now().toIso8601String(),
+              });
+            }
+          });
+        }
+        // --- FIN NOUVEAUTÉ ---
 
         if (mounted) {
           Navigator.pushAndRemoveUntil(

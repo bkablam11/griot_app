@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
-import '../../core/services/auth_service.dart'; // Vérifie bien le chemin vers ton AuthService
+import 'package:google_fonts/google_fonts.dart';
+import '../../core/services/auth_service.dart';
 import '../collection/record_page.dart';
 import '../village/village_page.dart';
 import '../village/actualite_page.dart';
+import '../profile/profile_page.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -15,34 +17,36 @@ class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
   final AuthService _auth = AuthService();
 
-  // --- LOGIQUE DYNAMIQUE ---
-
-  List<Widget> _getPages(bool isCollector) {
+  // On crée une structure pour lier l'icône et la page ensemble
+  // Cela évite les décalages d'index
+  List<Map<String, dynamic>> _getMenuConfig(bool isCollector) {
     return [
-      const VillagePage(),
-      if (isCollector) const RecordPage(),
-      const ActualitePage(),
-    ];
-  }
-
-  List<NavigationDestination> _getNavDestinations(bool isCollector) {
-    return [
-      const NavigationDestination(
-        icon: Icon(Icons.maps_home_work_outlined),
-        selectedIcon: Icon(Icons.maps_home_work),
-        label: 'Village',
-      ),
+      {
+        'page': const VillagePage(),
+        'label': 'Village',
+        'icon': Icons.maps_home_work_outlined,
+        'selectedIcon': Icons.maps_home_work,
+      },
       if (isCollector)
-        const NavigationDestination(
-          icon: Icon(Icons.mic_none),
-          selectedIcon: Icon(Icons.mic),
-          label: 'Collecter',
-        ),
-      const NavigationDestination(
-        icon: Icon(Icons.notifications_none),
-        selectedIcon: Icon(Icons.notifications),
-        label: 'Activité',
-      ),
+        {
+          'page': const RecordPage(),
+          'label': 'Collecter',
+          'icon': Icons.mic_none,
+          'selectedIcon': Icons.mic,
+        },
+      {
+        'page': const ActualitePage(),
+        'label': 'Activité',
+        'icon': Icons.notifications_none,
+        'selectedIcon': Icons.notifications,
+      },
+      if (isCollector)
+        {
+          'page': const ProfilePage(),
+          'label': 'Héritage',
+          'icon': Icons.person_outline,
+          'selectedIcon': Icons.person,
+        },
     ];
   }
 
@@ -51,17 +55,18 @@ class _MainScreenState extends State<MainScreen> {
     final bool isCollector = _auth.isCollector();
     final bool isWideScreen = MediaQuery.of(context).size.width > 900;
 
-    final pages = _getPages(isCollector);
-    final destinations = _getNavDestinations(isCollector);
+    // On génère la configuration actuelle
+    final menuConfig = _getMenuConfig(isCollector);
 
-    // Sécurité : si l'utilisateur change de rôle, on réinitialise l'index
-    if (_selectedIndex >= pages.length) {
+    // Sécurité pour l'index
+    if (_selectedIndex >= menuConfig.length) {
       _selectedIndex = 0;
     }
 
     return Scaffold(
       body: Row(
         children: [
+          // SIDEBAR (WEB)
           if (isWideScreen)
             NavigationRail(
               backgroundColor: const Color(0xFFF5F5F0),
@@ -77,19 +82,30 @@ class _MainScreenState extends State<MainScreen> {
                   size: 30,
                 ),
               ),
-              destinations: destinations
+              destinations: menuConfig
                   .map(
-                    (d) => NavigationRailDestination(
-                      icon: d.icon,
-                      selectedIcon: d.selectedIcon,
-                      label: Text(d.label),
+                    (item) => NavigationRailDestination(
+                      icon: Icon(item['icon']),
+                      selectedIcon: Icon(item['selectedIcon']),
+                      label: Text(item['label']),
                     ),
                   )
                   .toList(),
             ),
-          Expanded(child: pages[_selectedIndex]),
+
+          // CONTENU PRINCIPAL (Utilisation de IndexedStack pour garder les pages vivantes)
+          Expanded(
+            child: IndexedStack(
+              index: _selectedIndex,
+              children: menuConfig
+                  .map<Widget>((item) => item['page'] as Widget)
+                  .toList(),
+            ),
+          ),
         ],
       ),
+
+      // BARRE DU BAS (MOBILE)
       bottomNavigationBar: isWideScreen
           ? null
           : NavigationBar(
@@ -98,7 +114,15 @@ class _MainScreenState extends State<MainScreen> {
               selectedIndex: _selectedIndex,
               onDestinationSelected: (index) =>
                   setState(() => _selectedIndex = index),
-              destinations: destinations,
+              destinations: menuConfig
+                  .map(
+                    (item) => NavigationDestination(
+                      icon: Icon(item['icon']),
+                      selectedIcon: Icon(item['selectedIcon']),
+                      label: item['label'],
+                    ),
+                  )
+                  .toList(),
             ),
     );
   }
